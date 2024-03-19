@@ -1,0 +1,112 @@
+---
+title: "Exercise 1"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-03-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(igraph)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(tidygraph)
+library(RColorBrewer)
+library(purrr)
+library(ggplot2)
+library(ggraph)
+library(oaqc)
+```
+
+```{r}
+Connections <- read.csv("~/Desktop/McGill/Org Network Analysis/Connections.csv")
+```
+
+```{r}
+Connections <- Connections %>%
+  mutate(label = str_c(
+    `First.Name`,
+    str_sub(`Last.Name`, 1, 1),
+    row_number()
+  )) %>%
+  select(label, Company) %>%
+  drop_na()
+```
+
+```{r}
+Connections %>%
+  count()
+```
+
+
+```{r}
+contact_count_by_company <- Connections %>%
+  group_by(Company) %>%
+  count(sort = TRUE) %>%
+  filter(n > 10)
+
+contact_count_by_company <- contact_count_by_company %>%
+  filter(Company != "" & !is.na(Company))
+
+contact_count_by_company 
+```
+
+```{r}
+con_df <- Connections %>%
+  filter(Company %in% contact_count_by_company$Company) %>%
+  group_by(Company) %>%
+  summarise(label_combinations = list(combn(label, 2, simplify = FALSE)), .groups = 'drop') %>%
+  unnest(label_combinations) %>%
+  transmute(
+    from = map_chr(label_combinations, 1),
+    to = map_chr(label_combinations, 2),
+    Company = Company
+  )
+
+con_df
+```
+
+```{r}
+set.seed(591)
+
+graph_data <- con_df %>%
+  slice_sample(prop = 0.4) %>%
+  as_tbl_graph(directed = FALSE)
+
+graph_data
+```
+
+```{r}
+mcgill_names <- (con_df %>%
+  filter(Company %in% c(
+    "McGill University",
+    "McGill University - Desautels Faculty of Management"
+  )) %>%
+  select(from, to) %>%
+  pivot_longer(cols = c(from, to)) %>%
+  distinct() %>%
+  pull(value))
+```
+
+```{r}
+# Generate the layout and plot
+graph_layout <- ggraph(graph_data, layout = 'fr') +  # replace 'fr' with your chosen layout
+  geom_node_point(size = 2, aes(color = name %in% mcgill_names)) +
+  geom_node_text(aes(label = name), repel = TRUE, max.overlaps = 2, check_overlap = TRUE) +
+  geom_edge_link(aes(color = Company), show.legend = TRUE, width = 1) +
+  theme_void() +
+  theme(legend.position = "bottom", panel.border = element_rect(fill = NA)) +
+  labs(
+    title = "LinkedIn Connection Network"
+  )
+
+# Explicitly print the plot
+print(graph_layout)
+
+
+```
