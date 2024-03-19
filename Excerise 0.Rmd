@@ -1,0 +1,23 @@
+---
+title: "hello-ona"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-03-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(igraph)
+```
+
+
+```{r}
+print("Hello Network")
+```
+
